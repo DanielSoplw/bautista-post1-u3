@@ -1,39 +1,43 @@
 package com.universidad.tienda;
 
-import com.universidad.tienda.adapter.*;
-import com.universidad.tienda.composite.*;
+import com.universidad.tienda.decorator.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-class TiendaServicioTest {
+class DecoratorTest {
 
-    @Test
-    void testAdapterPayPalProcesaPago() {
-        PasarelaPago pp = new PayPalAdapter();
-        assertTrue(pp.procesarPago("USD", 100.0, "tok_abc"));
+    private OrdenServicio buildCompleto() {
+        OrdenServicio base = new OrdenServicioBase();
+        return new AuditoriaDecorator(
+                new ValidacionDecorator(
+                        new LoggingDecorator(base)));
     }
 
     @Test
-    void testAdapterStripeRechazaTokenVacio() {
-        PasarelaPago stripe = new StripeAdapter();
-        assertFalse(stripe.procesarPago("COP", 500000, ""));
+    void testOrdenValida() {
+        OrdenServicio svc = buildCompleto();
+        String result = svc.procesarOrden("ORD-001", 50000.0);
+        assertTrue(result.startsWith("PROCESADA:"));
     }
 
     @Test
-    void testCompositeCalculaPrecioTotal() {
-        Categoria cat = new Categoria("Test");
-        cat.agregar(new Producto("A", 100));
-        cat.agregar(new Producto("B", 200));
-        assertEquals(300.0, cat.getPrecioTotal());
+    void testOrdenMontoInvalido() {
+        OrdenServicio svc = buildCompleto();
+        assertThrows(IllegalArgumentException.class,
+                () -> svc.procesarOrden("ORD-002", 0.0));
     }
 
     @Test
-    void testCompositeAnidado() {
-        Categoria raiz = new Categoria("Raiz");
-        Categoria sub = new Categoria("Sub");
-        sub.agregar(new Producto("X", 500));
-        raiz.agregar(sub);
-        raiz.agregar(new Producto("Y", 200));
-        assertEquals(700.0, raiz.getPrecioTotal());
+    void testOrdenIdVacio() {
+        OrdenServicio svc = buildCompleto();
+        assertThrows(IllegalArgumentException.class,
+                () -> svc.procesarOrden("", 10000.0));
+    }
+
+    @Test
+    void testDecoradorIndividualLogging() {
+        OrdenServicio base = new OrdenServicioBase();
+        OrdenServicio conLog = new LoggingDecorator(base);
+        assertDoesNotThrow(() -> conLog.procesarOrden("ORD-003", 0.0));
     }
 }
